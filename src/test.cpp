@@ -154,7 +154,7 @@ void showMenu(bool &isStarted)
     setTerminalColor(0);
     while (true) // Infinite loop to keep asking for valid input
     {
-        setTerminalColor(1);
+        setTerminalColor(2);
         cout << "MAIN MENU:\n";
         setTerminalColor(0);
         cout << "1. Start Game\n";
@@ -179,7 +179,7 @@ void showMenu(bool &isStarted)
         }
         else if (userOption == 2)
         {
-            setTerminalColor(1);
+            setTerminalColor(2);
             cout << "HOW TO PLAY:\n";
             setTerminalColor(0);
             cout << "1. Move your pieces diagonally on the board.\n";

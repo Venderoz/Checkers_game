@@ -1,6 +1,5 @@
 #include <iostream>
 #include <windows.h>
-#include <string>
 #pragma once
 
 void setTerminalColor(unsigned short int color){
