@@ -17,7 +17,10 @@ void setTerminalColor(unsigned short int color){
         systemColor = FOREGROUND_GREEN;
         break;  
     case 3:
-        systemColor = FOREGROUND_BLUE;
+        systemColor = FOREGROUND_BLUE | FOREGROUND_GREEN;
+        break;  
+    case 4:
+        systemColor = FOREGROUND_RED | FOREGROUND_GREEN;
         break;  
     default:
         break;
