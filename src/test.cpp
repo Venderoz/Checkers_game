@@ -174,6 +174,21 @@ void initializeBoard(vector<vector<Piece>> &board)
                 board[row][col] = EMPTY;
             }
         }
+        // for (int col = 0; col < BOARD_SIZE; ++col)
+        // {
+        //     if (row == 3 && (row + col) % 2 == 1)
+        //     {
+        //         board[row][col] = RED;
+        //     }
+        //     else if (row > 4 && (row + col) % 2 == 1)
+        //     {
+        //         board[row][col] = GREEN;
+        //     }
+        //     else
+        //     {
+        //         board[row][col] = EMPTY;
+        //     }
+        // }
     }
 }
 
@@ -181,18 +196,14 @@ void initializeBoard(vector<vector<Piece>> &board)
 bool isValidMove(const vector<vector<Piece>> &board, Player currentPlayer, Position start, Position end)
 {
     // Check if the destination is within bounds
-    if (end.row < 0 || end.row >= BOARD_SIZE)
-        return false;
-    if (end.col < 0 || end.col >= BOARD_SIZE)
+    if (end.row < 0 || end.row >= BOARD_SIZE || end.col < 0 || end.col >= BOARD_SIZE)
         return false;
 
-    // Ensure moves occur only on star squares
-    if ((start.row + start.col) % 2 == 0)
-        return false;
-    if ((end.row + end.col) % 2 == 0)
+    // Ensure moves occur only on dark squares
+    if ((start.row + start.col) % 2 == 0 || (end.row + end.col) % 2 == 0)
         return false;
 
-    // Ensure if user points on his piece and not opponent's
+    // Ensure if the user points at their own piece
     Piece piece = board[start.row][start.col];
     if ((currentPlayer == RED_PLAYER && piece != RED && piece != RED_KING) ||
         (currentPlayer == GREEN_PLAYER && piece != GREEN && piece != GREEN_KING))
@@ -208,58 +219,43 @@ bool isValidMove(const vector<vector<Piece>> &board, Player currentPlayer, Posit
     // Standard pieces (RED and GREEN)
     if (piece == RED || piece == GREEN)
     {
-        if (currentPlayer == RED_PLAYER && end.row - start.row == 1 && colDiff == 1)
+        // Forward move by 1 square
+        if ((currentPlayer == RED_PLAYER && end.row > start.row && rowDiff == 1 && colDiff == 1) ||
+            (currentPlayer == GREEN_PLAYER && end.row < start.row && rowDiff == 1 && colDiff == 1))
+        {
             return true;
-        if (currentPlayer == GREEN_PLAYER && end.row - start.row == -1 && colDiff == 1)
-            return true;
+        }
 
+        // Forward capture (jump over an opponent's piece)
         if (rowDiff == 2 && colDiff == 2)
         {
             Position middle = {(start.row + end.row) / 2, (start.col + end.col) / 2};
-            if ((currentPlayer == RED_PLAYER && board[middle.row][middle.col] == GREEN) ||
-                (currentPlayer == GREEN_PLAYER && board[middle.row][middle.col] == RED))
+            if ((currentPlayer == RED_PLAYER && (board[middle.row][middle.col] == GREEN || board[middle.row][middle.col] == GREEN_KING)) ||
+                (currentPlayer == GREEN_PLAYER && (board[middle.row][middle.col] == RED || board[middle.row][middle.col] == RED_KING)))
+            {
                 return true;
+            }
         }
     }
 
     // Kings (RED_KING and GREEN_KING)
     else if (piece == RED_KING || piece == GREEN_KING)
     {
-        if (rowDiff == colDiff)
-        { // Ensure it's a diagonal move
-            int rowStep = (end.row - start.row > 0) ? 1 : -1;
-            int colStep = (end.col - start.col > 0) ? 1 : -1;
-
-            bool encounteredOpponent = false;
-
-            for (int i = 1; i < rowDiff; ++i)
-            {
-                int currentRow = start.row + i * rowStep;
-                int currentCol = start.col + i * colStep;
-
-                // If there's an opponent piece in the path
-                if (board[currentRow][currentCol] == (currentPlayer == RED_PLAYER ? GREEN : RED) ||
-                    board[currentRow][currentCol] == (currentPlayer == RED_PLAYER ? GREEN_KING : RED_KING))
-                {
-                    if (encounteredOpponent)
-                        return false; // Can't jump more than one piece
-                    encounteredOpponent = true;
-                }
-                // If there's any other piece (including a friendly piece), move is invalid
-                else if (board[currentRow][currentCol] != EMPTY)
-                {
-                    return false;
-                }
-            }
-
-            // If it's an attack move, ensure exactly one opponent piece was encountered
-            if (encounteredOpponent)
-            {
-                return board[end.row][end.col] == EMPTY; // Ensure destination is empty
-            }
-
-            // If no opponent was encountered, it's a valid non-attack move
+        // Single-square diagonal move
+        if (rowDiff == 1 && colDiff == 1)
+        {
             return true;
+        }
+
+        // Capture (jump over an opponent's piece)
+        if (rowDiff == 2 && colDiff == 2)
+        {
+            Position middle = {(start.row + end.row) / 2, (start.col + end.col) / 2};
+            if ((currentPlayer == RED_PLAYER && (board[middle.row][middle.col] == GREEN || board[middle.row][middle.col] == GREEN_KING)) ||
+                (currentPlayer == GREEN_PLAYER && (board[middle.row][middle.col] == RED || board[middle.row][middle.col] == RED_KING)))
+            {
+                return true;
+            }
         }
     }
 
@@ -267,7 +263,7 @@ bool isValidMove(const vector<vector<Piece>> &board, Player currentPlayer, Posit
 }
 
 // function for making the move
-void makeMove(vector<vector<Piece>> &board, Player currentPlayer, Position start, Position end, bool &isCaptured)
+void makeMove(vector<vector<Piece>> &board, Player currentPlayer, Position start, Position end, bool &isCaptured, Position &captureEnd)
 {
     Piece piece = board[start.row][start.col];
     board[end.row][end.col] = piece;
@@ -282,19 +278,18 @@ void makeMove(vector<vector<Piece>> &board, Player currentPlayer, Position start
         int rowStep = (end.row - start.row > 0) ? 1 : -1;
         int colStep = (end.col - start.col > 0) ? 1 : -1;
         isCaptured = true;
+        captureEnd = {end.row, end.col};
 
         for (int i = 1; i < rowDiff; ++i)
         {
             int currentRow = start.row + i * rowStep;
             int currentCol = start.col + i * colStep;
-            isCaptured = false;
 
             // If the king jumps over an opponent piece, remove it
             if (board[currentRow][currentCol] == (currentPlayer == RED_PLAYER ? GREEN : RED) ||
                 board[currentRow][currentCol] == (currentPlayer == RED_PLAYER ? GREEN_KING : RED_KING))
             {
                 board[currentRow][currentCol] = EMPTY;
-                isCaptured = true;
                 break;
             }
         }
@@ -329,15 +324,26 @@ bool hasMoves(const vector<vector<Piece>> &board, Player player)
                         Position end = {row + dr, col + dc};
                         if (isValidMove(board, player, start, end))
                         {
-                            setTerminalColor(3);
-                            cout << "Valid move for " << (player == RED_PLAYER ? "Red" : "Green")
-                                 << " from (" << start.row + 1 << " " << start.col + 1 << ") to ("
-                                 << end.row + 1 << " " << end.col + 1 << ")" << endl;
-                            setTerminalColor(0);
                             return true;
                         }
                     }
                 }
+            }
+        }
+    }
+    return false;
+}
+bool hasCaptureMoves(const vector<vector<Piece>> &board, Player player, Position pos)
+{
+    Position start = {pos.row, pos.col};
+    for (int dr = -2; dr <= 2; dr += 4)
+    {
+        for (int dc = -2; dc <= 2; dc += 4)
+        {
+            Position end = {pos.row + 2, pos.col + 2};
+            if (isValidMove(board, player, start, end))
+            {
+                return true;
             }
         }
     }
@@ -365,18 +371,12 @@ bool hasWon(const vector<vector<Piece>> &board, Player player)
 
     if (!opponentExists)
     {
-        setTerminalColor(3);
-        cout << "Opponent has no pieces left." << endl;
-        setTerminalColor(0);
         return true;
     }
 
     Player opponent = (player == RED_PLAYER) ? GREEN_PLAYER : RED_PLAYER;
     if (!hasMoves(board, opponent))
     {
-        setTerminalColor(3);
-        cout << "Opponent has no valid moves left." << endl;
-        setTerminalColor(0);
         return true;
     }
 
@@ -415,11 +415,11 @@ void playGame()
 
     Player currentPlayer = RED_PLAYER;
     bool isCaptured = false;
+    Position captureEnd = {-1, -1};
 
     while (true)
     {
         printBoard(board);
-
         if (!hasMoves(board, currentPlayer))
         {
             if (currentPlayer == RED_PLAYER)
@@ -450,17 +450,32 @@ void playGame()
         }
 
         Position start, end;
-        getInput(start, "Enter start position (row col): ");
-        getInput(end, "Enter end position (row col): ");
+        if (captureEnd.row == -1 && captureEnd.col == -1)
+        {
+            getInput(start, "Enter the start position (row col): ");
+        }
+        else
+        {
+            start = captureEnd;
+            setTerminalColor(3);
+            cout << "Continue move with the same piece at (" << start.row + 1 << ", " << start.col + 1 << ")\n";
+            setTerminalColor(0);
+        }
+        getInput(end, "Enter the end position (row col): ");
         cout << "\n\n";
 
         if (isValidMove(board, currentPlayer, start, end))
         {
-            makeMove(board, currentPlayer, start, end, isCaptured);
-            if (!isCaptured)
+            makeMove(board, currentPlayer, start, end, isCaptured, captureEnd);
+            if (isCaptured)
             {
-                currentPlayer = (currentPlayer == RED_PLAYER) ? GREEN_PLAYER : RED_PLAYER;
+                if (hasCaptureMoves(board, currentPlayer, end))
+                {
+                    continue;
+                }
             }
+            captureEnd = {-1, -1};
+            currentPlayer = (currentPlayer == RED_PLAYER) ? GREEN_PLAYER : RED_PLAYER;
         }
         else
         {
@@ -474,7 +489,6 @@ void playGame()
 int main()
 {
     bool isStarted = false;
-    bool isFinished = false;
 
     showMenu(isStarted);
     if (isStarted)
