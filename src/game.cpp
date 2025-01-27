@@ -62,7 +62,9 @@ void showMenu(bool &isStarted)
         {
             cin.clear();               // Clear the fail state
             cin.ignore(INT_MAX, '\n'); // Discard invalid input
-            cout << "Invalid input. Please enter a valid number (1, 2, or 3).\n\n";
+            setTerminalColor(1);
+            cout << "Invalid input. Please enter a valid option (1, 2, or 3).\n\n";
+            setTerminalColor(0);
             continue;
         }
 
