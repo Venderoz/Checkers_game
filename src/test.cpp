@@ -155,7 +155,6 @@ void printBoard(const vector<vector<Piece>> &board)
 // function for initializing the board
 void initializeBoard(vector<vector<Piece>> &board)
 {
-    // placing the pieces on the board
     for (int row = 0; row < BOARD_SIZE; ++row)
     {
         for (int col = 0; col < BOARD_SIZE; ++col)
@@ -173,21 +172,6 @@ void initializeBoard(vector<vector<Piece>> &board)
                 board[row][col] = EMPTY;
             }
         }
-        /*for (int col = 0; col < BOARD_SIZE; ++col)
-        {
-            if (row == 1 && (row + col) % 2 == 1)
-            {
-                board[row][col] = RED;
-            }
-            else if (row > 4 && (row + col) % 2 == 1)
-            {
-                board[row][col] = GREEN;
-            }
-            else
-            {
-                board[row][col] = EMPTY;
-            }
-        }*/
     }
 }
 
@@ -415,7 +399,7 @@ bool hasCaptureMoves(const vector<vector<Piece>> &board, Player player, Position
         }
     }
 
-    return false; // No valid capture moves found
+    return false;
 }
 
 // function for checking if the player has won
