@@ -76,13 +76,12 @@ void showMenu(bool &isStarted)
             setTerminalColor(2);
             cout << "HOW TO PLAY:\n";
             setTerminalColor(0);
-            cout << "1. Your goal is to win by capturing all of your opponent's pieces or leaving them with no valid moves.\n";
-            cout << "2. Move your pieces diagonally on the star squares of the board.\n";
-            cout << "3. Regular pieces can move only one square forward diagonally.\n";
-            cout << "4. Capture your opponent's pieces by jumping over them. Multiple jumps are allowed if possible.\n";
-            cout << "5. Reach the opponent's back row to promote your piece to a KING.\n";
-            cout << "6. Kings can move both forward and backward diagonally and can capture opponent pieces from any distance if the path is clear.\n";
-            cout << "7. Input your moves in the format: ROW COLUMN (e.g., 3 4 or 6 7).\n\n";
+            cout << "1. Your goal is to win by capturing all of your opponent's pieces or leaving them with no valid moves.\n\n";
+            cout << "2. Move your pieces diagonally on the star squares of the board.\n   Regular pieces can move only one square forward diagonally.\n\n";
+            cout << "3. Capture your opponent's pieces by jumping over them. Multiple catches are allowed if possible.\n\n";
+            cout << "4. If you have got a second move, you have to continue with the same piece you performed the catch previously.\n   You don't have to catch the second opponent's piece, you can just move your piece another way.\n\n";
+            cout << "5. Reach the opponent's back row to promote your piece to a KING.\n   Kings can move both forward and backward diagonally.\n   Can capture opponent pieces from any distance if the path is clear.\n   They are also allowed to perform double catches.\n\n";
+            cout << "6. Input your moves in the format: ROW COLUMN (e.g., 3 4 or 6 7).\n\n";
         }
         else if (userOption == 3)
         {
@@ -174,21 +173,21 @@ void initializeBoard(vector<vector<Piece>> &board)
                 board[row][col] = EMPTY;
             }
         }
-        // for (int col = 0; col < BOARD_SIZE; ++col)
-        // {
-        //     if (row == 3 && (row + col) % 2 == 1)
-        //     {
-        //         board[row][col] = RED;
-        //     }
-        //     else if (row > 4 && (row + col) % 2 == 1)
-        //     {
-        //         board[row][col] = GREEN;
-        //     }
-        //     else
-        //     {
-        //         board[row][col] = EMPTY;
-        //     }
-        // }
+        /*for (int col = 0; col < BOARD_SIZE; ++col)
+        {
+            if (row == 1 && (row + col) % 2 == 1)
+            {
+                board[row][col] = RED;
+            }
+            else if (row > 4 && (row + col) % 2 == 1)
+            {
+                board[row][col] = GREEN;
+            }
+            else
+            {
+                board[row][col] = EMPTY;
+            }
+        }*/
     }
 }
 
@@ -203,13 +202,13 @@ bool isValidMove(const vector<vector<Piece>> &board, Player currentPlayer, Posit
     if ((start.row + start.col) % 2 == 0 || (end.row + end.col) % 2 == 0)
         return false;
 
-    // Ensure if the user points at their own piece
+    // Ensure the player is moving their own piece
     Piece piece = board[start.row][start.col];
     if ((currentPlayer == RED_PLAYER && piece != RED && piece != RED_KING) ||
         (currentPlayer == GREEN_PLAYER && piece != GREEN && piece != GREEN_KING))
         return false;
 
-    // Ensure destination is empty
+    // Ensure the destination is empty
     if (board[end.row][end.col] != EMPTY)
         return false;
 
@@ -241,22 +240,48 @@ bool isValidMove(const vector<vector<Piece>> &board, Player currentPlayer, Posit
     // Kings (RED_KING and GREEN_KING)
     else if (piece == RED_KING || piece == GREEN_KING)
     {
-        // Single-square diagonal move
-        if (rowDiff == 1 && colDiff == 1)
+        // Kings must move diagonally
+        if (rowDiff == colDiff)
         {
-            return true;
+            int rowStep = (end.row > start.row) ? 1 : -1;
+            int colStep = (end.col > start.col) ? 1 : -1;
+
+            int row = start.row + rowStep;
+            int col = start.col + colStep;
+            bool opponentFound = false;
+
+            while (row != end.row && col != end.col)
+            {
+                Piece current = board[row][col];
+
+                if (current == EMPTY)
+                {
+                    row += rowStep;
+                    col += colStep;
+                }
+                else if (!opponentFound &&
+                         ((currentPlayer == RED_PLAYER &&
+                           (current == GREEN || current == GREEN_KING)) ||
+                          (currentPlayer == GREEN_PLAYER &&
+                           (current == RED || current == RED_KING))))
+                {
+                    // Found an opponent piece to jump over
+                    opponentFound = true;
+                    row += rowStep;
+                    col += colStep;
+                }
+                else
+                {
+                    // Path blocked or multiple opponents found
+                    return false;
+                }
+            }
+
+            // Ensure the destination is empty and exactly one opponent was jumped (if any)
+            return opponentFound ? board[end.row][end.col] == EMPTY : true;
         }
 
-        // Capture (jump over an opponent's piece)
-        if (rowDiff == 2 && colDiff == 2)
-        {
-            Position middle = {(start.row + end.row) / 2, (start.col + end.col) / 2};
-            if ((currentPlayer == RED_PLAYER && (board[middle.row][middle.col] == GREEN || board[middle.row][middle.col] == GREEN_KING)) ||
-                (currentPlayer == GREEN_PLAYER && (board[middle.row][middle.col] == RED || board[middle.row][middle.col] == RED_KING)))
-            {
-                return true;
-            }
-        }
+        return false; // Not diagonal
     }
 
     return false;
@@ -268,7 +293,7 @@ void makeMove(vector<vector<Piece>> &board, Player currentPlayer, Position start
     Piece piece = board[start.row][start.col];
     board[end.row][end.col] = piece;
     board[start.row][start.col] = EMPTY;
-    // Handle jumps (for both regular pieces and kings)
+
     int rowDiff = abs(end.row - start.row);
     int colDiff = abs(end.col - start.col);
     isCaptured = false;
@@ -277,22 +302,24 @@ void makeMove(vector<vector<Piece>> &board, Player currentPlayer, Position start
     { // Jump occurred
         int rowStep = (end.row - start.row > 0) ? 1 : -1;
         int colStep = (end.col - start.col > 0) ? 1 : -1;
-        isCaptured = true;
-        captureEnd = {end.row, end.col};
 
-        for (int i = 1; i < rowDiff; ++i)
+        int row = start.row + rowStep;
+        int col = start.col + colStep;
+
+        while (row != end.row && col != end.col)
         {
-            int currentRow = start.row + i * rowStep;
-            int currentCol = start.col + i * colStep;
-
-            // If the king jumps over an opponent piece, remove it
-            if (board[currentRow][currentCol] == (currentPlayer == RED_PLAYER ? GREEN : RED) ||
-                board[currentRow][currentCol] == (currentPlayer == RED_PLAYER ? GREEN_KING : RED_KING))
+            if ((board[row][col] == (currentPlayer == RED_PLAYER ? GREEN : RED)) ||
+                (board[row][col] == (currentPlayer == RED_PLAYER ? GREEN_KING : RED_KING)))
             {
-                board[currentRow][currentCol] = EMPTY;
+                board[row][col] = EMPTY; // Remove opponent piece
+                isCaptured = true;
                 break;
             }
+            row += rowStep;
+            col += colStep;
         }
+
+        captureEnd = end; // Update captureEnd for additional moves
     }
 
     // Promote to king if applicable
@@ -336,18 +363,59 @@ bool hasMoves(const vector<vector<Piece>> &board, Player player)
 bool hasCaptureMoves(const vector<vector<Piece>> &board, Player player, Position pos)
 {
     Position start = {pos.row, pos.col};
-    for (int dr = -2; dr <= 2; dr += 4)
+    Piece currentPiece = board[start.row][start.col];
+
+    // Define directions for diagonals: {row_step, col_step}
+    int directions[4][2] = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
+
+    // Loop through all diagonal directions
+    for (int i = 0; i < 4; i++)
     {
-        for (int dc = -2; dc <= 2; dc += 4)
+        int rowStep = directions[i][0];
+        int colStep = directions[i][1];
+        int row = start.row + rowStep;
+        int col = start.col + colStep;
+
+        bool opponentFound = false;
+
+        // Check along this diagonal direction
+        while (row >= 0 && row < board.size() && col >= 0 && col < board[0].size())
         {
-            Position end = {pos.row + 2, pos.col + 2};
-            if (isValidMove(board, player, start, end))
+            Piece current = board[row][col];
+
+            if (current == EMPTY)
             {
-                return true;
+                if (opponentFound)
+                {
+                    // If we already jumped over an opponent and landed on an empty square, it's a valid capture move
+                    Position end = {row, col};
+                    if (isValidMove(board, player, start, end))
+                    {
+                        return true;
+                    }
+                }
+                // Otherwise, continue checking further along the diagonal
+                row += rowStep;
+                col += colStep;
+            }
+            else if (!opponentFound &&
+                     ((player == RED_PLAYER && (current == GREEN || current == GREEN_KING)) ||
+                      (player == GREEN_PLAYER && (current == RED || current == RED_KING))))
+            {
+                // Found an opponent piece to jump over
+                opponentFound = true;
+                row += rowStep;
+                col += colStep;
+            }
+            else
+            {
+                // Path is blocked or multiple opponent pieces encountered
+                break;
             }
         }
     }
-    return false;
+
+    return false; // No valid capture moves found
 }
 
 // function for checking if the player has won
@@ -420,6 +488,7 @@ void playGame()
     while (true)
     {
         printBoard(board);
+
         if (!hasMoves(board, currentPlayer))
         {
             if (currentPlayer == RED_PLAYER)
@@ -436,6 +505,7 @@ void playGame()
             }
             break;
         }
+
         if (currentPlayer == RED_PLAYER)
         {
             setTerminalColor(1);
@@ -467,14 +537,26 @@ void playGame()
         if (isValidMove(board, currentPlayer, start, end))
         {
             makeMove(board, currentPlayer, start, end, isCaptured, captureEnd);
+
             if (isCaptured)
             {
+                // Check if another capture is available
                 if (hasCaptureMoves(board, currentPlayer, end))
                 {
-                    continue;
+                    captureEnd = end; // Update captureEnd to force another move with the same piece
+                    continue;         // Stay in the same player's turn
+                }
+                else
+                {
+                    captureEnd = {-1, -1}; // Reset captureEnd if no more captures are possible
                 }
             }
-            captureEnd = {-1, -1};
+            else
+            {
+                captureEnd = {-1, -1}; // Reset captureEnd if no capture occurred
+            }
+
+            // Switch turn
             currentPlayer = (currentPlayer == RED_PLAYER) ? GREEN_PLAYER : RED_PLAYER;
         }
         else
